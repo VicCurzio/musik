@@ -8,6 +8,7 @@ import { renderPlayer, destroyPlayer } from './components/player.js';
 import { renderSettings, destroySettings } from './components/settings.js';
 import { renderMiniPlayer, destroyMiniPlayer, updateMiniPlayer } from './components/miniPlayer.js';
 import { audioEngine } from './services/audioEngine.js';
+import { loadAllTracks, getSettings } from './services/libraryStore.js';
 
 // ----- State -----
 let currentView = null;
@@ -166,13 +167,34 @@ export function showToast(message, type = 'success') {
 // Make navigateTo available globally for components
 window.__musikNavigate = navigateTo;
 
+async function bootstrapLibrary() {
+  const loader = document.getElementById('boot-loader');
+  try {
+    const settings = await getSettings();
+    audioEngine.eqEnabled = settings.eqEnabled;
+    audioEngine.setEqBands(settings.eqBands);
+
+    if (settings.persistLibrary) {
+      const tracks = await loadAllTracks();
+      if (tracks.length > 0) {
+        audioEngine.setTracks(tracks);
+      }
+    }
+  } catch (err) {
+    console.error('Error restoring library:', err);
+  } finally {
+    if (loader) loader.remove();
+  }
+}
+
 // ----- Bootstrap -----
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initApp();
   setupRouter();
   registerServiceWorker();
 
-  // Navigate to current hash or default
+  await bootstrapLibrary();
+
   const view = getViewFromHash();
   renderView(view);
 });

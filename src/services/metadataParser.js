@@ -12,10 +12,11 @@ export async function parseMetadata(file) {
     const metadata = await mm.parseBlob(file);
 
     let artworkUrl = null;
+    let artworkBlob = null;
     if (metadata.common.picture && metadata.common.picture.length > 0) {
       const pic = metadata.common.picture[0];
-      const blob = new Blob([pic.data], { type: pic.format });
-      artworkUrl = URL.createObjectURL(blob);
+      artworkBlob = new Blob([pic.data], { type: pic.format });
+      artworkUrl = URL.createObjectURL(artworkBlob);
     }
 
     return {
@@ -24,6 +25,7 @@ export async function parseMetadata(file) {
       album: metadata.common.album || 'Álbum desconocido',
       duration: metadata.format.duration || 0,
       artworkUrl,
+      artworkBlob,
     };
   } catch (error) {
     console.warn('Error parsing metadata:', error);
@@ -33,6 +35,7 @@ export async function parseMetadata(file) {
       album: 'Álbum desconocido',
       duration: 0,
       artworkUrl: null,
+      artworkBlob: null,
     };
   }
 }

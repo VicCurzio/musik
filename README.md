@@ -4,11 +4,15 @@ Un reproductor de música progresivo (PWA) rápido, privado y sin anuncios. Cons
 
 ## Características
 
-- 🔒 **100% Privado**: Tus archivos nunca salen de tu dispositivo. Todo el procesamiento se realiza localmente en la memoria del navegador.
-- 🎵 **Soporte Amplio**: Reproduce de forma nativa MP3 y WAV. Incluye soporte al vuelo para archivos WMA mediante transcodificación local (usando ffmpeg.wasm).
-- 📱 **Progressive Web App (PWA)**: Instalable en dispositivos móviles (Android/iOS) y de escritorio.
-- ⏯️ **Reproducción en Segundo Plano**: Soporte completo para Media Session API, permitiendo controles desde la pantalla de bloqueo o auriculares.
-- 🎨 **Diseño Moderno**: Interfaz oscura con efecto de cristal (glassmorphism), animaciones fluidas y completamente responsiva.
+- 🔒 **100% Privado**: Tus archivos nunca salen de tu dispositivo. Todo el procesamiento se realiza localmente.
+- 💾 **Biblioteca persistente (Android)**: Opción para guardar tu música en IndexedDB del teléfono — no hace falta reimportar cada vez que abres la app.
+- 📁 **Carpetas**: Importa una carpeta completa y navega por Rock, Cumbia, etc. como en tu almacenamiento.
+- 📋 **Mis listas**: Crea playlists personalizadas y añade canciones desde el menú ⋮.
+- 🎚️ **Ecualizador**: 5 bandas con interruptor on/off (recomendado desactivar en iPhone si hay cortes al bloquear).
+- 🎵 **Soporte Amplio**: MP3, WAV, FLAC y WMA (transcodificación local con ffmpeg.wasm).
+- 📱 **PWA**: Instalable en Android y escritorio.
+- ⏯️ **Segundo plano**: Media Session API — controles en pantalla de bloqueo.
+- 🎨 **Diseño moderno**: Interfaz oscura, glassmorphism, responsiva.
 
 ## Tecnologías Utilizadas
 
