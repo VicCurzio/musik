@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist -b gh-pages"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -15,6 +16,7 @@
     "music-metadata": "^10.6.4"
   },
   "devDependencies": {
+    "gh-pages": "^6.3.0",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^0.21.1"
   }

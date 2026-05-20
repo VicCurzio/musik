@@ -42,11 +42,19 @@ Si vas a subir este código a GitHub para publicarlo usando [GitHub Pages](https
 1. **Vercel** (Recomendado, más fácil):
    Simplemente conecta tu repositorio de GitHub a Vercel y se configurará automáticamente (usa `npm run build` como comando de construcción y `dist` como directorio de salida).
 
-2. **GitHub Pages**:
-   - URL: **https://viccurzio.github.io/musik/**
-   - Al hacer `git push` a `main`, el workflow sube el build a la rama `gh-pages`.
-   - En el repo: **Settings → Pages → Source:** rama **`gh-pages`**, carpeta **`/ (root)`**.
-   - Si también ves el workflow viejo "pages build and deployment", en Pages dejá solo la rama `gh-pages` (no `main`).
+2. **GitHub Pages** (URL: **https://viccurzio.github.io/musik/**):
+
+   **Si en Actions ves:** *"your account is locked due to a billing issue"*  
+   → No es un error del código. GitHub **bloquea tus workflows** hasta que arregles la facturación en [github.com/settings/billing](https://github.com/settings/billing). El workflow `Deploy to GitHub Pages` no va a correr hasta entonces.
+
+   **Deploy sin Actions (desde tu PC):**
+   ```bash
+   npm install
+   npm run deploy
+   ```
+   Eso compila y sube `dist` a la rama `gh-pages`. Luego en el repo: **Settings → Pages →** rama **`gh-pages`**, carpeta **`/ (root)`**.
+
+   El workflow verde **"pages build and deployment"** es otro (de GitHub). Si Pages apunta a `main`, publica el código fuente sin compilar → 404. Tiene que ser rama **`gh-pages`** con el build.
 
 ## Licencia
 Hecho con ♥ por Victor Roberto Curzio.
