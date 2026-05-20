@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// GitHub Pages project site: https://<user>.github.io/musik/
+const base = '/musik/';
+
 export default defineConfig({
+  base,
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
@@ -14,16 +18,16 @@ export default defineConfig({
         background_color: '#0d0b1a',
         display: 'standalone',
         orientation: 'portrait-primary',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         categories: ['music', 'entertainment'],
         icons: [
           {
-            src: '/icons/icon.svg',
+            src: `${base}icons/icon.svg`,
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable',
-          }
+          },
         ],
       },
       workbox: {

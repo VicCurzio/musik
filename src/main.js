@@ -128,7 +128,7 @@ function registerServiceWorker() {
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register(`${import.meta.env.BASE_URL}sw.js`)
         .then((reg) => {
           console.log('SW registered:', reg.scope);
         })
