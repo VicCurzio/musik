@@ -43,11 +43,10 @@ Si vas a subir este código a GitHub para publicarlo usando [GitHub Pages](https
    Simplemente conecta tu repositorio de GitHub a Vercel y se configurará automáticamente (usa `npm run build` como comando de construcción y `dist` como directorio de salida).
 
 2. **GitHub Pages**:
-   Si tu repositorio se llama `musik`, asegúrate de agregar `base: '/musik/'` en tu archivo `vite.config.js` antes de compilar. Luego ejecuta:
-   ```bash
-   npm run build
-   ```
-   Y sube la carpeta `dist` a la rama `gh-pages`.
+   - URL: **https://viccurzio.github.io/musik/**
+   - Al hacer `git push` a `main`, el workflow sube el build a la rama `gh-pages`.
+   - En el repo: **Settings → Pages → Source:** rama **`gh-pages`**, carpeta **`/ (root)`**.
+   - Si también ves el workflow viejo "pages build and deployment", en Pages dejá solo la rama `gh-pages` (no `main`).
 
 ## Licencia
 Hecho con ♥ por Victor Roberto Curzio.
