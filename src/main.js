@@ -139,7 +139,7 @@ function registerServiceWorker() {
   }
 }
 
-// ----- Toast Helper (exported for other modules) -----
+// ----- Toast Helper (exported for other modules!) -----
 export function showToast(message, type = 'success') {
   // Remove any existing toast
   const existing = document.querySelector('.toast');
