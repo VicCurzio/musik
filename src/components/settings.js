@@ -7,8 +7,16 @@ import {
   getStorageUsage,
 } from '../services/libraryStore.js';
 import { showToast } from '../main.js';
+import {
+  canPromptInstall,
+  getInstallHint,
+  isStandalone,
+  promptInstall,
+  getPlatform,
+} from '../services/pwaInstall.js';
 
 let containerRef = null;
+let installListenersCleanup = null;
 const EQ_LABELS = ['60 Hz', '230 Hz', '910 Hz', '3.6 kHz', '14 kHz'];
 
 export function renderSettings(container) {
@@ -35,6 +43,8 @@ async function render() {
     <div class="settings-header">
       <h1>Ajustes</h1>
     </div>
+
+    <div class="settings-section" id="installSection"></div>
 
     <div class="settings-section">
       <h3>Ecualizador</h3>
@@ -136,12 +146,58 @@ async function render() {
     </div>
   `;
 
-  view.innerHTML = view.innerHTML.replace(/div/g, 'div');
-
   containerRef.innerHTML = '';
   containerRef.appendChild(view);
 
+  renderInstallSection(view);
   bindSettings(view, settings);
+
+  installListenersCleanup?.();
+  const onInstallChange = () => renderInstallSection(view);
+  window.addEventListener('pwa-install-available', onInstallChange);
+  window.addEventListener('pwa-installed', onInstallChange);
+  installListenersCleanup = () => {
+    window.removeEventListener('pwa-install-available', onInstallChange);
+    window.removeEventListener('pwa-installed', onInstallChange);
+  };
+}
+
+function renderInstallSection(view) {
+  const el = view.querySelector('#installSection');
+  if (!el) return;
+
+  const hint = getInstallHint();
+  const installed = isStandalone();
+  const showBtn = canPromptInstall() && !installed;
+
+  el.innerHTML = `
+    <h3>Instalar app</h3>
+    <div class="install-card ${installed ? 'installed' : ''}">
+      <div class="install-card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <p class="install-card-text">${hint.message}</p>
+      ${
+        showBtn
+          ? `<button type="button" class="btn-install-app" id="btnInstallPwa">Instalar Musik</button>`
+          : ''
+      }
+      ${
+        getPlatform() === 'ios' && !installed
+          ? `<div class="install-ios-steps">
+              <span>1. Tocá <strong>Compartir</strong></span>
+              <span>2. <strong>Añadir a pantalla de inicio</strong></span>
+            </div>`
+          : ''
+      }
+    </div>
+  `;
+
+  view.querySelector('#btnInstallPwa')?.addEventListener('click', async () => {
+    const ok = await promptInstall();
+    showToast(ok ? '¡Musik instalada!' : 'Instalación cancelada', ok ? 'success' : 'error');
+    renderInstallSection(view);
+  });
 }
 
 function bindSettings(view, settings) {
@@ -191,5 +247,7 @@ function formatDb(v) {
 }
 
 export function destroySettings() {
+  installListenersCleanup?.();
+  installListenersCleanup = null;
   containerRef = null;
 }

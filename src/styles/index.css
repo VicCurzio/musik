@@ -1340,6 +1340,76 @@ ul, ol {
   display: none !important;
 }
 
+/* ----- PWA Install ----- */
+.install-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  text-align: center;
+}
+
+.install-card.installed {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.install-card-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-accent);
+}
+
+.install-card-icon svg {
+  width: 28px;
+  height: 28px;
+  color: white;
+}
+
+.install-card-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.btn-install-app {
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: var(--accent-gradient);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-accent);
+  transition: var(--transition);
+}
+
+.btn-install-app:active {
+  transform: scale(0.98);
+}
+
+.install-ios-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: left;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+}
+
 /* ----- Boot loader ----- */
 .boot-loader {
   position: fixed;

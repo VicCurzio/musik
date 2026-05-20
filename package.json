@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "icons": "node scripts/generate-icons.mjs",
+    "build": "npm run icons && vite build",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist -b gh-pages"
   },
@@ -17,6 +18,7 @@
   },
   "devDependencies": {
     "gh-pages": "^6.3.0",
+    "sharp": "^0.34.2",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^0.21.1"
   }

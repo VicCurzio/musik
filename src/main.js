@@ -9,6 +9,7 @@ import { renderSettings, destroySettings } from './components/settings.js';
 import { renderMiniPlayer, destroyMiniPlayer, updateMiniPlayer } from './components/miniPlayer.js';
 import { audioEngine } from './services/audioEngine.js';
 import { loadAllTracks, getSettings } from './services/libraryStore.js';
+import { initPwaInstall } from './services/pwaInstall.js';
 
 // ----- State -----
 let currentView = null;
@@ -189,6 +190,7 @@ async function bootstrapLibrary() {
 
 // ----- Bootstrap -----
 document.addEventListener('DOMContentLoaded', async () => {
+  initPwaInstall();
   initApp();
   setupRouter();
   registerServiceWorker();
