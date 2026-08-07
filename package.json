@@ -1,13 +1,16 @@
 {
   "name": "musik",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "icons": "node scripts/generate-icons.mjs",
     "build": "npm run icons && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "release": "node scripts/release.mjs",
     "deploy": "npm run build && gh-pages -d dist -b gh-pages"
   },
   "dependencies": {
@@ -18,8 +21,10 @@
   },
   "devDependencies": {
     "gh-pages": "^6.3.0",
+    "jsdom": "^25.0.1",
     "sharp": "^0.34.2",
     "vite": "^6.3.5",
-    "vite-plugin-pwa": "^0.21.1"
+    "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^2.1.8"
   }
 }

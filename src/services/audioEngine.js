@@ -1,23 +1,43 @@
 /**
  * AudioEngine — Core singleton managing all audio playback for Musik.
  *
- * Handles track queue, play/pause/next/prev, shuffle & repeat modes,
- * optional 5-band EQ (Web Audio API), scoped playback (folder/playlist),
- * Media Session API, and event-emitter pattern for UI reactivity.
+ * Handles track queue, play/pause/next/prev, "play next" queue, shuffle &
+ * repeat modes, optional 5-band EQ (Web Audio API), scoped playback
+ * (folder/playlist), playback speed, volume fades, Media Session API, and an
+ * event-emitter pattern for UI reactivity.
  */
+
+import { gainDbToLinear } from './loudness.js';
 
 const EQ_FREQUENCIES = [60, 230, 910, 3600, 14000];
 
-class AudioEngine {
+/** Ready-made curves, in dB per band, for people who do not speak in dB. */
+export const EQ_PRESETS = {
+  flat: { name: 'Plano', bands: [0, 0, 0, 0, 0] },
+  bass: { name: 'Graves', bands: [7, 4, 0, -1, -2] },
+  vocal: { name: 'Voz', bands: [-2, 0, 4, 4, 1] },
+  rock: { name: 'Rock', bands: [5, 2, -1, 3, 5] },
+  pop: { name: 'Pop', bands: [-1, 2, 4, 2, -1] },
+  night: { name: 'Noche', bands: [-3, -1, 2, 1, -2] },
+};
+
+const FADE_MS = 400;
+/** Pausing uses a shorter ramp so the button still feels instant. */
+const FADE_PAUSE_MS = 150;
+const FADE_STEP_MS = 25;
+
+export class AudioEngine {
   constructor() {
     /** @type {HTMLAudioElement} */
     this.audio = new Audio();
     this.audio.crossOrigin = 'anonymous';
     this.audio.preload = 'auto';
-    document.body.appendChild(this.audio);
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.appendChild(this.audio);
+    }
 
     /**
-     * @type {Array<{id: string, key: string, relativePath: string, file: File|Blob, objectUrl: string|null, title: string, artist: string, album: string, duration: number, artworkUrl: string|null, artworkBlob?: Blob|null}>}
+     * @type {Array<{id: string, key: string, relativePath: string, file: File|Blob, objectUrl: string|null, title: string, artist: string, album: string, duration: number, artworkUrl: string|null, artworkBlob?: Blob|null, addedAt?: number}>}
      */
     this.tracks = [];
 
@@ -29,8 +49,11 @@ class AudioEngine {
     this.shuffleOrder = [];
     /** @type {number[]|null} Restrict next/prev to these track indices */
     this.playbackScope = null;
+    /** @type {number[]} Explicit "play next" queue, consumed before the scope */
+    this.upNext = [];
     this._listeners = {};
     this.volume = 1.0;
+    this.playbackRate = 1;
 
     // Web Audio EQ (lazy init on first play when enabled)
     this.audioContext = null;
@@ -39,6 +62,15 @@ class AudioEngine {
     this.eqEnabled = true;
     /** @type {number[]} gains in dB */
     this.eqBands = [0, 0, 0, 0, 0];
+
+    // Volume normalisation (per-track gain measured at import time)
+    this.normalizeEnabled = true;
+
+    // Fades
+    this.fadeEnabled = true;
+    this._fadeLevel = 1;
+    this._fadeTimer = null;
+    this._fadingOutForEnd = false;
 
     this._setupAudioListeners();
   }
@@ -61,18 +93,12 @@ class AudioEngine {
    */
   setTracks(tracks) {
     this.pause();
-    for (const track of this.tracks) {
-      if (track.objectUrl) {
-        URL.revokeObjectURL(track.objectUrl);
-      }
-      if (track.artworkUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(track.artworkUrl);
-      }
-    }
+    this._releaseUrls(this.tracks);
     this.tracks = tracks;
     this.currentIndex = -1;
     this.shuffleOrder = [];
     this.playbackScope = null;
+    this.upNext = [];
     this.audio.removeAttribute('src');
     this.audio.load();
     this._emit('queueChange', this.tracks);
@@ -82,40 +108,85 @@ class AudioEngine {
   clearTracks() {
     this.pause();
     this.clearPlaybackScope();
-    for (const track of this.tracks) {
-      if (track.objectUrl) {
-        URL.revokeObjectURL(track.objectUrl);
-      }
-      if (track.artworkUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(track.artworkUrl);
-      }
-    }
+    this._releaseUrls(this.tracks);
     this.tracks = [];
     this.currentIndex = -1;
     this.shuffleOrder = [];
+    this.upNext = [];
     this.audio.removeAttribute('src');
     this.audio.load();
     this._emit('queueChange', this.tracks);
     this._emit('trackChange', null);
   }
 
+  /**
+   * Drop a track from the in-memory queue, remapping every index-based
+   * structure (scope, shuffle order, up-next, current index) so nothing points
+   * at the wrong song afterwards.
+   * @param {string} key
+   * @returns {boolean} whether a track was removed
+   */
+  removeTrackByKey(key) {
+    const removedIndex = this.findIndexByKey(key);
+    if (removedIndex === -1) return false;
+
+    const wasCurrent = removedIndex === this.currentIndex;
+    const wasPlaying = this.isPlaying;
+
+    const [removed] = this.tracks.splice(removedIndex, 1);
+    this._releaseUrls([removed]);
+
+    const remap = (i) => (i > removedIndex ? i - 1 : i);
+    const drop = (arr) => arr.filter((i) => i !== removedIndex).map(remap);
+
+    if (this.playbackScope) {
+      this.playbackScope = drop(this.playbackScope);
+      if (!this.playbackScope.length) this.playbackScope = null;
+    }
+    this.shuffleOrder = drop(this.shuffleOrder);
+    this.upNext = drop(this.upNext);
+
+    if (wasCurrent) {
+      // Stay on the same position in the list: the next song slides into it.
+      this.currentIndex = -1;
+      this.audio.removeAttribute('src');
+      this.audio.load();
+      this._emit('trackChange', null);
+
+      const scope = this.getScopeIndices();
+      const fallback = scope.find((i) => i >= removedIndex) ?? scope[0];
+      if (wasPlaying && fallback !== undefined) {
+        this.play(fallback);
+      }
+    } else if (this.currentIndex > removedIndex) {
+      this.currentIndex--;
+    }
+
+    this._emit('queueChange', this.tracks);
+    return true;
+  }
+
   /** @param {number[]} indices — indices into this.tracks */
   setPlaybackScope(indices) {
     this.playbackScope = indices.length > 0 ? [...indices] : null;
+    if (this.shuffleMode) this._generateShuffleOrder();
   }
 
   clearPlaybackScope() {
     this.playbackScope = null;
+    if (this.shuffleMode) this._generateShuffleOrder();
   }
 
   /**
-   * Play a subset (folder or playlist) from the first track.
+   * Play a subset (folder or playlist).
    * @param {number[]} indices
+   * @param {number} [startIndex] — index into this.tracks; defaults to the first
    */
-  playScope(indices) {
+  playScope(indices, startIndex) {
     if (!indices.length) return;
     this.setPlaybackScope(indices);
-    this.play(indices[0]);
+    const start = startIndex !== undefined && indices.includes(startIndex) ? startIndex : indices[0];
+    this.play(start);
   }
 
   getScopeIndices() {
@@ -126,18 +197,97 @@ class AudioEngine {
   }
 
   // ---------------------------------------------------------------------------
+  // "Play next" queue
+  // ---------------------------------------------------------------------------
+
+  /** @param {number} index */
+  queueNext(index) {
+    if (index < 0 || index >= this.tracks.length) return;
+    this.upNext = this.upNext.filter((i) => i !== index);
+    this.upNext.unshift(index);
+    this._emit('upNextChange', this.getUpNextTracks());
+  }
+
+  /** @param {number} index */
+  queueLast(index) {
+    if (index < 0 || index >= this.tracks.length) return;
+    if (!this.upNext.includes(index)) this.upNext.push(index);
+    this._emit('upNextChange', this.getUpNextTracks());
+  }
+
+  removeFromUpNext(position) {
+    if (position < 0 || position >= this.upNext.length) return;
+    this.upNext.splice(position, 1);
+    this._emit('upNextChange', this.getUpNextTracks());
+  }
+
+  moveInUpNext(position, delta) {
+    const to = position + delta;
+    if (position < 0 || position >= this.upNext.length || to < 0 || to >= this.upNext.length) return;
+    const [item] = this.upNext.splice(position, 1);
+    this.upNext.splice(to, 0, item);
+    this._emit('upNextChange', this.getUpNextTracks());
+  }
+
+  clearUpNext() {
+    this.upNext = [];
+    this._emit('upNextChange', []);
+  }
+
+  getUpNextTracks() {
+    return this.upNext.map((i) => this.tracks[i]).filter(Boolean);
+  }
+
+  /**
+   * What plays after the current song, up-next first then the scope order.
+   * @param {number} limit
+   */
+  getUpcoming(limit = 30) {
+    const result = this.getUpNextTracks().map((track, i) => ({
+      track,
+      source: 'upNext',
+      position: i,
+    }));
+
+    const scope = this.shuffleMode && this.shuffleOrder.length
+      ? this.shuffleOrder.filter((i) => this.getScopeIndices().includes(i))
+      : this.getScopeIndices();
+
+    const pos = scope.indexOf(this.currentIndex);
+    const rest = pos === -1 ? scope : scope.slice(pos + 1);
+    const wrapped = this.repeatMode === 'all' ? [...rest, ...scope.slice(0, Math.max(0, pos))] : rest;
+
+    for (const i of wrapped) {
+      if (result.length >= limit) break;
+      if (this.upNext.includes(i)) continue;
+      const track = this.tracks[i];
+      if (track) result.push({ track, source: 'scope', position: i });
+    }
+
+    return result.slice(0, limit);
+  }
+
+  // ---------------------------------------------------------------------------
   // EQ
   // ---------------------------------------------------------------------------
 
-  setEqEnabled(enabled) {
+  async setEqEnabled(enabled) {
     this.eqEnabled = enabled;
-    if (!enabled && this._eqGraphReady) {
+
+    if (enabled) {
+      // Build the graph right away so toggling mid-song takes effect
+      // immediately instead of waiting for the next track.
+      await this._ensureEqGraph();
+      if (this.audioContext?.state === 'suspended') {
+        await this.audioContext.resume().catch(() => {});
+      }
+      this.eqBands.forEach((g, i) => this.setEqBand(i, g));
+    } else if (this._eqGraphReady) {
       for (const f of this.eqFilters) {
         f.gain.value = 0;
       }
-    } else if (enabled && this._eqGraphReady) {
-      this.eqBands.forEach((g, i) => this.setEqBand(i, g));
     }
+
     this._emit('eqChange', { enabled: this.eqEnabled, bands: [...this.eqBands] });
   }
 
@@ -145,6 +295,22 @@ class AudioEngine {
     this.eqBands = bands.slice(0, 5);
     while (this.eqBands.length < 5) this.eqBands.push(0);
     this.eqBands.forEach((g, i) => this.setEqBand(i, g));
+  }
+
+  /** @param {keyof EQ_PRESETS} presetKey */
+  applyEqPreset(presetKey) {
+    const preset = EQ_PRESETS[presetKey];
+    if (!preset) return null;
+    this.setEqBands([...preset.bands]);
+    return preset;
+  }
+
+  /** Which preset the current bands match, or 'custom'. */
+  getMatchingPreset() {
+    for (const [key, preset] of Object.entries(EQ_PRESETS)) {
+      if (preset.bands.every((v, i) => v === this.eqBands[i])) return key;
+    }
+    return 'custom';
   }
 
   /**
@@ -164,28 +330,34 @@ class AudioEngine {
   /** @private */
   async _ensureEqGraph() {
     if (this._eqGraphReady || !this.eqEnabled) return;
+    if (typeof AudioContext === 'undefined') return;
 
-    const ctx = new AudioContext();
-    this.audioContext = ctx;
+    try {
+      const ctx = new AudioContext();
+      this.audioContext = ctx;
 
-    const source = ctx.createMediaElementSource(this.audio);
-    let node = source;
+      const source = ctx.createMediaElementSource(this.audio);
+      let node = source;
 
-    this.eqFilters = EQ_FREQUENCIES.map((freq, i) => {
-      const filter = ctx.createBiquadFilter();
-      if (i === 0) filter.type = 'lowshelf';
-      else if (i === EQ_FREQUENCIES.length - 1) filter.type = 'highshelf';
-      else filter.type = 'peaking';
-      filter.frequency.value = freq;
-      filter.Q.value = 1;
-      filter.gain.value = this.eqBands[i] || 0;
-      node.connect(filter);
-      node = filter;
-      return filter;
-    });
+      this.eqFilters = EQ_FREQUENCIES.map((freq, i) => {
+        const filter = ctx.createBiquadFilter();
+        if (i === 0) filter.type = 'lowshelf';
+        else if (i === EQ_FREQUENCIES.length - 1) filter.type = 'highshelf';
+        else filter.type = 'peaking';
+        filter.frequency.value = freq;
+        filter.Q.value = 1;
+        filter.gain.value = this.eqBands[i] || 0;
+        node.connect(filter);
+        node = filter;
+        return filter;
+      });
 
-    node.connect(ctx.destination);
-    this._eqGraphReady = true;
+      node.connect(ctx.destination);
+      this._eqGraphReady = true;
+    } catch (err) {
+      console.warn('No se pudo crear el ecualizador:', err);
+      this.eqEnabled = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -206,25 +378,70 @@ class AudioEngine {
       if (this.eqEnabled) {
         await this._ensureEqGraph();
         if (this.audioContext?.state === 'suspended') {
-          await this.audioContext.resume();
+          await this.audioContext.resume().catch(() => {});
         }
       }
 
+      this._fadingOutForEnd = false;
       this.audio.src = track.objectUrl;
       this.audio.load();
+      this.audio.playbackRate = this.playbackRate;
       this._updateMediaSession();
     }
 
     try {
+      if (this.fadeEnabled) {
+        this._setFadeLevel(0);
+      }
       await this.audio.play();
+      if (this.fadeEnabled) this._fadeTo(1, FADE_PAUSE_MS);
+      else this._setFadeLevel(1);
     } catch (err) {
+      this._setFadeLevel(1);
       console.warn('Playback failed:', err);
       this._emit('error', err);
     }
   }
 
-  pause() {
+  /**
+   * Load a track and seek, without starting playback — used to restore the
+   * previous session so the user can hit play and continue.
+   */
+  cue(index, position = 0) {
+    if (index < 0 || index >= this.tracks.length) return;
+
+    this.currentIndex = index;
+    const track = this.tracks[index];
+    if (!track.objectUrl) {
+      track.objectUrl = URL.createObjectURL(track.file);
+    }
+
+    this.audio.src = track.objectUrl;
+    this.audio.load();
+    this.audio.playbackRate = this.playbackRate;
+
+    const seek = () => {
+      if (position > 0 && Number.isFinite(this.audio.duration)) {
+        this.audio.currentTime = Math.min(position, this.audio.duration - 1);
+      }
+      this.audio.removeEventListener('loadedmetadata', seek);
+    };
+    this.audio.addEventListener('loadedmetadata', seek);
+
+    this._updateMediaSession();
+    this._emit('trackChange', track);
+  }
+
+  pause({ fade = true } = {}) {
+    if (fade && this.fadeEnabled && this.isPlaying) {
+      this._fadeTo(0, FADE_PAUSE_MS, () => {
+        this.audio.pause();
+        this._setFadeLevel(1);
+      });
+      return;
+    }
     this.audio.pause();
+    this._setFadeLevel(1);
   }
 
   togglePlay() {
@@ -245,6 +462,15 @@ class AudioEngine {
       return;
     }
 
+    if (this.upNext.length) {
+      const nextIndex = this.upNext.shift();
+      this._emit('upNextChange', this.getUpNextTracks());
+      if (nextIndex >= 0 && nextIndex < this.tracks.length) {
+        this.play(nextIndex);
+        return;
+      }
+    }
+
     const pos = scope.indexOf(this.currentIndex);
     let nextIndex;
 
@@ -256,7 +482,7 @@ class AudioEngine {
       } else if (this.repeatMode === 'all' && scopedShuffle.length > 0) {
         nextIndex = scopedShuffle[0];
       } else {
-        this.pause();
+        this.pause({ fade: false });
         return;
       }
     } else if (pos >= 0 && pos < scope.length - 1) {
@@ -264,7 +490,7 @@ class AudioEngine {
     } else if (this.repeatMode === 'all') {
       nextIndex = scope[0];
     } else {
-      this.pause();
+      this.pause({ fade: false });
       return;
     }
 
@@ -307,15 +533,34 @@ class AudioEngine {
   }
 
   seek(time) {
-    if (Number.isFinite(time)) {
-      this.audio.currentTime = Math.max(0, Math.min(time, this.audio.duration || 0));
+    if (!Number.isFinite(time)) return;
+
+    this.audio.currentTime = Math.max(0, Math.min(time, this.audio.duration || 0));
+
+    // Seeking away from the tail cancels the end-of-song fade, otherwise the
+    // volume would stay stuck low for the rest of the track.
+    if (this._fadingOutForEnd) {
+      this._fadingOutForEnd = false;
+      this._setFadeLevel(1);
     }
   }
 
   setVolume(v) {
     this.volume = Math.max(0, Math.min(1, v));
-    this.audio.volume = this.volume;
+    this._applyVolume();
     this._emit('volumeChange', this.volume);
+  }
+
+  /** @param {number} rate 0.5–2 */
+  setPlaybackRate(rate) {
+    this.playbackRate = Math.max(0.5, Math.min(2, Number(rate) || 1));
+    this.audio.playbackRate = this.playbackRate;
+    this._emit('rateChange', this.playbackRate);
+  }
+
+  setFadeEnabled(enabled) {
+    this.fadeEnabled = !!enabled;
+    if (!this.fadeEnabled) this._setFadeLevel(1);
   }
 
   setRepeat(mode) {
@@ -357,20 +602,80 @@ class AudioEngine {
 
   /** @param {string[]} keys */
   getIndicesByKeys(keys) {
-    return keys
-      .map((key) => this.findIndexByKey(key))
-      .filter((i) => i !== -1);
+    return keys.map((key) => this.findIndexByKey(key)).filter((i) => i !== -1);
   }
 
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------
 
+  _releaseUrls(tracks) {
+    for (const track of tracks) {
+      if (!track) continue;
+      if (track.objectUrl) URL.revokeObjectURL(track.objectUrl);
+      if (track.artworkUrl?.startsWith('blob:')) URL.revokeObjectURL(track.artworkUrl);
+    }
+  }
+
+  _applyVolume() {
+    const level = this.volume * this._fadeLevel * this._trackGain();
+    this.audio.volume = Math.max(0, Math.min(1, level));
+  }
+
+  /** Linear multiplier that levels the current track against the rest. */
+  _trackGain() {
+    if (!this.normalizeEnabled) return 1;
+    const track = this.getCurrentTrack();
+    return gainDbToLinear(track?.gainDb);
+  }
+
+  setNormalizeEnabled(enabled) {
+    this.normalizeEnabled = !!enabled;
+    this._applyVolume();
+    this._emit('normalizeChange', this.normalizeEnabled);
+  }
+
+  _setFadeLevel(level) {
+    if (this._fadeTimer) {
+      clearInterval(this._fadeTimer);
+      this._fadeTimer = null;
+    }
+    this._fadeLevel = Math.max(0, Math.min(1, level));
+    this._applyVolume();
+  }
+
+  /**
+   * Ramp the fade multiplier towards `target`.
+   * @param {number} target
+   * @param {number} [ms]
+   * @param {() => void} [onDone]
+   */
+  _fadeTo(target, ms = FADE_MS, onDone) {
+    if (this._fadeTimer) clearInterval(this._fadeTimer);
+
+    const steps = Math.max(1, Math.round(ms / FADE_STEP_MS));
+    const delta = (target - this._fadeLevel) / steps;
+    let remaining = steps;
+
+    this._fadeTimer = setInterval(() => {
+      remaining--;
+      this._fadeLevel = remaining <= 0 ? target : this._fadeLevel + delta;
+      this._applyVolume();
+
+      if (remaining <= 0) {
+        clearInterval(this._fadeTimer);
+        this._fadeTimer = null;
+        onDone?.();
+      }
+    }, FADE_STEP_MS);
+  }
+
   _setupAudioListeners() {
     this.audio.addEventListener('timeupdate', () => {
       this._emit('timeUpdate', this.getProgress());
+      this._maybeFadeOutBeforeEnd();
 
-      if ('mediaSession' in navigator && this.audio.duration) {
+      if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && this.audio.duration) {
         try {
           navigator.mediaSession.setPositionState({
             duration: this.audio.duration,
@@ -384,6 +689,8 @@ class AudioEngine {
     });
 
     this.audio.addEventListener('ended', () => {
+      this._fadingOutForEnd = false;
+      this._setFadeLevel(1);
       this.next();
     });
 
@@ -411,8 +718,22 @@ class AudioEngine {
     });
   }
 
+  /** Soften the last moments of a song instead of cutting it dead. */
+  _maybeFadeOutBeforeEnd() {
+    if (!this.fadeEnabled || !this.isPlaying || this._fadingOutForEnd) return;
+    if (this.repeatMode === 'one') return;
+
+    const { duration, currentTime } = this.getProgress();
+    if (!duration) return;
+
+    if (duration - currentTime <= FADE_MS / 1000) {
+      this._fadingOutForEnd = true;
+      this._fadeTo(0);
+    }
+  }
+
   _updateMediaSession() {
-    if (!('mediaSession' in navigator)) return;
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
 
     const track = this.getCurrentTrack();
     if (!track) return;
@@ -509,8 +830,9 @@ class AudioEngine {
   }
 
   destroy() {
-    this.pause();
+    this.pause({ fade: false });
     this.clearTracks();
+    if (this._fadeTimer) clearInterval(this._fadeTimer);
     if (this.audio.parentNode) {
       this.audio.parentNode.removeChild(this.audio);
     }
@@ -522,4 +844,3 @@ class AudioEngine {
 }
 
 export const audioEngine = new AudioEngine();
-export { AudioEngine };

@@ -5,12 +5,12 @@ let containerRef = null;
 const svgs = {
   play: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`,
   pause: `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" rx="1"/><rect x="15" y="3" width="4" height="18" rx="1"/></svg>`,
-  next: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 15 12 5 21 5 3"/><rect x="17" y="3" width="3" height="18" rx="1"/></svg>`
+  next: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 15 12 5 21 5 3"/><rect x="17" y="3" width="3" height="18" rx="1"/></svg>`,
 };
 
 export function renderMiniPlayer(container) {
   containerRef = container;
-  
+
   const el = document.createElement('div');
   el.className = 'mini-player';
   el.innerHTML = `
@@ -23,26 +23,21 @@ export function renderMiniPlayer(container) {
       <div class="mini-artist" id="miniArtist"></div>
     </div>
     <div class="mini-controls">
-      <button id="miniPlayPause">${svgs.play}</button>
-      <button id="miniNext">${svgs.next}</button>
+      <button type="button" id="miniPlayPause" aria-label="Reproducir">${svgs.play}</button>
+      <button type="button" id="miniNext" aria-label="Siguiente">${svgs.next}</button>
     </div>
   `;
-  
+
   container.appendChild(el);
 
-  // Click handler
   el.addEventListener('click', (e) => {
-    // Navigate to player unless clicking a button
     if (!e.target.closest('.mini-controls')) {
       window.__musikNavigate('player');
     }
   });
 
-  const btnPlayPause = el.querySelector('#miniPlayPause');
-  btnPlayPause.addEventListener('click', () => audioEngine.togglePlay());
-  
-  const btnNext = el.querySelector('#miniNext');
-  btnNext.addEventListener('click', () => audioEngine.next());
+  el.querySelector('#miniPlayPause').addEventListener('click', () => audioEngine.togglePlay());
+  el.querySelector('#miniNext').addEventListener('click', () => audioEngine.next());
 
   updateMiniPlayer();
 }
@@ -53,24 +48,22 @@ export function updateMiniPlayer() {
   if (!el) return;
 
   const track = audioEngine.getCurrentTrack();
-  
-  if (!track) {
+
+  // Hidden when nothing is loaded, or when the full player is on screen.
+  if (!track || window.location.hash.startsWith('#player')) {
     el.classList.remove('visible');
     return;
-  }
-  
-  // Hide if we are on player view
-  if (window.location.hash === '#player') {
-    el.classList.remove('visible');
-    return; 
   }
 
   el.classList.add('visible');
 
   const artEl = el.querySelector('#miniArtwork');
+  const existingSrc = artEl.querySelector('img')?.getAttribute('src') || '';
   if (track.artworkUrl) {
-    artEl.innerHTML = `<img src="${track.artworkUrl}" alt="Artwork">`;
-  } else {
+    if (existingSrc !== track.artworkUrl) {
+      artEl.innerHTML = `<img src="${track.artworkUrl}" alt="">`;
+    }
+  } else if (existingSrc) {
     artEl.innerHTML = '';
   }
 
@@ -78,12 +71,16 @@ export function updateMiniPlayer() {
   el.querySelector('#miniArtist').textContent = track.artist;
 
   const btnPlayPause = el.querySelector('#miniPlayPause');
-  btnPlayPause.innerHTML = audioEngine.isPlaying ? svgs.pause : svgs.play;
+  const wantPause = audioEngine.isPlaying;
+  if (btnPlayPause.dataset.state !== String(wantPause)) {
+    btnPlayPause.dataset.state = String(wantPause);
+    btnPlayPause.innerHTML = wantPause ? svgs.pause : svgs.play;
+    btnPlayPause.setAttribute('aria-label', wantPause ? 'Pausar' : 'Reproducir');
+  }
 
-  const p = audioEngine.getProgress();
   const progEl = el.querySelector('#miniProgress');
   if (progEl) {
-    progEl.style.width = `${p.percentage}%`;
+    progEl.style.width = `${audioEngine.getProgress().percentage}%`;
   }
 }
 
