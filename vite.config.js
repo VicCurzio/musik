@@ -15,6 +15,13 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
+  // El worker de metadata se crea con { type: 'module' } y su grafo tiene
+  // imports dinamicos (music-metadata), asi que necesita code-splitting: el
+  // default 'iife' de Vite hace fallar el build. Ver services/metadataParser.js,
+  // que ya cae al hilo principal si el navegador no soporta module workers.
+  worker: {
+    format: 'es',
+  },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
