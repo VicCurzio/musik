@@ -1,0 +1,42 @@
+{
+  // Migración progresiva a TypeScript.
+  //
+  // `allowJs` deja convivir .js y .ts en el mismo proyecto, y `checkJs: false`
+  // hace que los .js que todavía no se migraron no rompan el chequeo. Cada
+  // archivo que pasa a .ts entra a `strict` completo desde ese momento.
+  //
+  // Por qué así y no un cambio de golpe: son ~4.400 líneas, la mitad tocando el
+  // DOM. Renombrar todo de una deja cientos de errores abiertos y el chequeo en
+  // rojo, que es lo mismo que no tenerlo. De a un módulo, `npm run typecheck`
+  // queda siempre en verde y cada conversión es revisable sola.
+  //
+  // Orden de conversión: primero los bordes donde los tipos pagan (IndexedDB,
+  // metadata, ffmpeg, utilidades puras), al final los componentes de UI.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client"],
+
+    "allowJs": true,
+    "checkJs": false,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Vite compila cada archivo por separado y no hace type-checking: tsc solo
+    // verifica, no emite.
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src", "test", "vite.config.js", "vitest.config.js"],
+  "exclude": ["node_modules", "dist"]
+}

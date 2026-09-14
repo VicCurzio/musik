@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parseLrc, activeLyricIndex, basePathOf, folderOf, isCoverImage } from '../src/services/lyrics.js';
-import { gainDbToLinear } from '../src/services/loudness.js';
-import { compareVersions } from '../src/services/changelog.js';
+import { parseLrc, activeLyricIndex, basePathOf, folderOf, isCoverImage } from '../src/services/lyrics';
+import { gainDbToLinear } from '../src/services/loudness';
+import { compareVersions } from '../src/services/changelog';
 
 describe('parseLrc', () => {
   it('reads timestamped lines in order', () => {

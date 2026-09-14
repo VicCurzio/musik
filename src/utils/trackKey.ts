@@ -1,0 +1,52 @@
+import type { FileLike, Track } from '../types';
+
+/**
+ * Stable identity for a track across imports and IndexedDB.
+ *
+ * Path (or file name) alone is not unique: two different "01 - Intro.mp3"
+ * imported loose from different folders would collide and the second one would
+ * be silently dropped as a duplicate. The byte size disambiguates them while
+ * staying stable for the same file.
+ */
+export function getTrackKey(file: FileLike): string {
+  const path = file.webkitRelativePath || file.name;
+  const size = Number(file.size) || 0;
+  return `${size}:${path}`;
+}
+
+/** Key format used before the size prefix was introduced. */
+export function getLegacyTrackKey(file: FileLike): string {
+  return file.webkitRelativePath || file.name;
+}
+
+/** Rebuild a key from a stored record (which has no File object). */
+export function buildTrackKey(path: string, size: number | string | null | undefined): string {
+  return `${Number(size) || 0}:${path}`;
+}
+
+/** Strip the size prefix — what the user thinks of as the path. */
+export function keyToPath(key: string): string {
+  const i = String(key).indexOf(':');
+  return i === -1 ? String(key) : String(key).slice(i + 1);
+}
+
+/** Top-level folder name, e.g. "Rock" from "Rock/song.mp3" */
+export function getTopLevelFolder(relativePath: string | null | undefined): string | null {
+  if (!relativePath || !relativePath.includes('/')) return null;
+  // Con `noUncheckedIndexedAccess`, un índice de array puede ser undefined para
+  // TypeScript. Acá no lo es (ya se comprobó que hay una barra), pero el
+  // fallback es más barato que discutirlo con el compilador.
+  return relativePath.split('/')[0] ?? null;
+}
+
+/** All tracks under a top-level folder (includes nested subfolders). */
+export function trackBelongsToFolder(
+  track: Pick<Track, 'relativePath'>,
+  folderName: string | null | undefined
+): boolean {
+  if (!track.relativePath || !folderName) return false;
+  return (
+    track.relativePath.startsWith(`${folderName}/`) ||
+    getTopLevelFolder(track.relativePath) === folderName
+  );
+}

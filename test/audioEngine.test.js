@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AudioEngine } from '../src/services/audioEngine.js';
+import { AudioEngine } from '../src/services/audioEngine';
 
 /**
  * The queue logic (scope + shuffle + repeat + up-next + removal remapping) is

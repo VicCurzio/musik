@@ -601,37 +601,54 @@ ul, ol {
 .empty-library p {
   font-size: 14px;
   color: var(--text-secondary);
-  max-width: 260px;
+  max-width: 300px;
   line-height: 1.5;
 }
 
-.btn-demo-tracks {
+/* La demo es la acción principal de una biblioteca vacía: sin archivos propios
+   es lo único que se puede hacer, y en el demo público es lo primero que
+   alguien necesita. Importar queda como pista secundaria. */
+.btn-demo-primary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
+  gap: 10px;
+  padding: 14px 26px;
   margin-top: 4px;
-  border: 1px dashed rgba(6, 182, 212, 0.4);
+  border: none;
   border-radius: var(--radius-btn);
-  background: rgba(6, 182, 212, 0.08);
-  color: var(--accent-cyan);
-  font-size: 14px;
+  background: var(--accent-gradient);
+  box-shadow: var(--shadow-accent);
+  color: #ffffff;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
 }
 
-.btn-demo-tracks:hover {
-  background: rgba(6, 182, 212, 0.14);
+.btn-demo-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
-.btn-demo-tracks:active {
+.btn-demo-primary:active {
   transform: scale(0.96);
 }
 
-.btn-demo-tracks svg {
+.btn-demo-primary svg {
   width: 18px;
   height: 18px;
+}
+
+.empty-library .empty-hint {
+  margin-top: 12px;
+  max-width: 320px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.empty-library .empty-hint strong {
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 @keyframes float {
@@ -2661,5 +2678,285 @@ ul, ol {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* ============================================
+   Escritorio (>= 1024px)
+   ============================================
+   La app es mobile-first y en una pantalla grande quedaba como una columna de
+   640px flotando sobre un gradiente vacío. Acá se dibuja dentro de un marco de
+   teléfono, con un panel al costado que cuenta qué es el proyecto.
+
+   El `transform` de #app es lo que hace que todo funcione: convierte al marco en
+   el bloque contenedor de lo que está en `position: fixed` — nav inferior, mini
+   player, overlays, hojas de acciones, toasts — que de otra forma se anclaría a
+   los bordes de la ventana. Ver utils/overlayRoot.js. */
+
+.desktop-aside {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(32px, 5vw, 80px);
+    padding: 40px;
+    background: #07060f;
+    animation: none;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(900px 700px at 18% 12%, rgba(139, 92, 246, 0.2), transparent 65%),
+      radial-gradient(800px 600px at 82% 88%, rgba(6, 182, 212, 0.14), transparent 65%);
+    pointer-events: none;
+  }
+
+  #app {
+    flex: 0 0 auto;
+    width: 400px;
+    height: min(880px, calc(100vh - 80px));
+    border-radius: 44px;
+    background: var(--bg-gradient);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    box-shadow:
+      0 0 0 10px #08060f,
+      0 0 0 11px rgba(var(--tint-rgb), 0.14),
+      0 50px 110px rgba(0, 0, 0, 0.6);
+    /* Bloque contenedor de los fixed: ver el comentario de arriba. */
+    transform: translate(0);
+    z-index: 1;
+    /* Dentro del marco no hay notch ni barra de gestos que esquivar. */
+    --safe-area-bottom: 0px;
+  }
+
+  /* La app ya está limitada por el ancho del marco: el centrado de 768px
+     agregaría márgenes de más. */
+  .library-view,
+  .settings-view {
+    max-width: none;
+    margin: 0;
+    padding: 20px 18px;
+    padding-bottom: calc(var(--nav-height) + 70px + 20px);
+  }
+
+  .player-artwork-container {
+    width: min(300px, 78%);
+  }
+
+  /* El toast vive dentro del marco: sin nowrap, o se corta. */
+  .toast {
+    max-width: calc(100% - 32px);
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* ----- Panel del proyecto ----- */
+  .desktop-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    flex: 1 1 360px;
+    max-width: 460px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    z-index: 1;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--tint-rgb), 0.2) transparent;
+  }
+
+  .aside-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .aside-logo {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--accent-gradient);
+    box-shadow: var(--shadow-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+  }
+
+  .aside-logo svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .desktop-aside h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  .aside-tagline {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--accent-cyan);
+    font-weight: 500;
+  }
+
+  .aside-lead {
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .aside-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .aside-list li {
+    position: relative;
+    padding-left: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .aside-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+  }
+
+  .aside-list code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+
+  .aside-keys {
+    padding: 16px 18px;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+  }
+
+  .aside-keys h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+  }
+
+  .aside-keys ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .aside-keys li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .aside-keys li span {
+    margin-left: auto;
+  }
+
+  .aside-keys kbd {
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    min-width: 24px;
+    padding: 3px 7px;
+    text-align: center;
+    border-radius: 6px;
+    border: 1px solid var(--surface-border);
+    background: rgba(var(--tint-rgb), 0.07);
+    color: var(--text-primary);
+  }
+
+  .aside-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .aside-stack span {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: var(--surface);
+    color: var(--text-secondary);
+  }
+
+  .aside-repo {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 18px;
+    border-radius: var(--radius-btn);
+    border: 1px solid var(--surface-border);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition);
+  }
+
+  .aside-repo:hover {
+    background: var(--surface-hover);
+    border-color: var(--accent-soft, rgba(139, 92, 246, 0.3));
+  }
+
+  .aside-repo svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root[data-theme='light'] body {
+    background: #eceaf6;
+  }
+
+  :root[data-theme='light'] #app {
+    box-shadow:
+      0 0 0 10px #ffffff,
+      0 0 0 11px rgba(var(--tint-rgb), 0.1),
+      0 50px 110px rgba(24, 18, 45, 0.28);
+  }
+
+  :root[data-theme='light'] body::before {
+    background:
+      radial-gradient(900px 700px at 18% 12%, rgba(139, 92, 246, 0.16), transparent 65%),
+      radial-gradient(800px 600px at 82% 88%, rgba(6, 182, 212, 0.12), transparent 65%);
   }
 }

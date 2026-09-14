@@ -8,6 +8,17 @@ Lo que está en `Sin publicar` se muestra recién cuando se corre `npm run relea
 
 ## [Sin publicar]
 
+### Agregado
+
+- Nueve canciones de ejemplo para probar la app sin tener archivos propios: tres álbumes con sus carátulas, repartidos en carpetas, con una lista y un par de favoritos ya armados. No se descarga nada, se crean en el momento en tu navegador.
+- En la computadora Musik ahora se ve como un teléfono en el centro de la pantalla, con una ficha al costado que cuenta qué es y los atajos de teclado.
+
+### Cambiado
+
+- La pantalla de biblioteca vacía arranca ofreciendo las canciones de ejemplo, en vez de esconderlas debajo del texto para importar.
+- Se puede hacer zoom con los dedos: antes estaba bloqueado.
+- La app dejó de pedirle la tipografía a un servidor externo. Ahora usa la del sistema, así de verdad no habla con nadie.
+
 ## [1.3.0] - 2026-08-07
 
 ### Agregado

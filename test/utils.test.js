@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { normalize, compareText, escapeHtml, formatBytes, pluralTracks } from '../src/utils/text.js';
-import { getTrackKey, getTopLevelFolder, trackBelongsToFolder } from '../src/utils/trackKey.js';
+import { normalize, compareText, escapeHtml, formatBytes, pluralTracks } from '../src/utils/text';
+import { getTrackKey, getTopLevelFolder, trackBelongsToFolder } from '../src/utils/trackKey';
 
 describe('normalize', () => {
   it('makes search accent-insensitive', () => {

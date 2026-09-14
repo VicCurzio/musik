@@ -105,39 +105,19 @@ export default defineConfig({
       workbox: {
         // Handles the share_target POST before Workbox's own routes see it.
         importScripts: ['share-target-sw.js'],
+        // La app no pide nada por red: el audio sale de IndexedDB y las
+        // tipografias son las del sistema. Lo unico externo es el core de
+        // ffmpeg.wasm, que se baja la primera vez que hay que convertir un WMA
+        // (ver services/transcoder.js); cachearlo hace que la segunda vez
+        // funcione tambien sin conexion.
         runtimeCaching: [
           {
-            urlPattern: /\.(?:mp3|wav|ogg|flac|wma)$/i,
+            urlPattern: /^https:\/\/unpkg\.com\/@ffmpeg\/core.*/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'audio-cache',
+              cacheName: 'ffmpeg-core-cache',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'gstatic-fonts-cache',
-              expiration: {
-                maxEntries: 10,
+                maxEntries: 6,
                 maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
               },
               cacheableResponse: {
