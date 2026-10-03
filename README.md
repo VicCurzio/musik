@@ -1,5 +1,7 @@
 # Musik PWA
 
+[![Deploy](https://github.com/VicCurzio/musik/actions/workflows/deploy.yml/badge.svg)](https://github.com/VicCurzio/musik/actions/workflows/deploy.yml)
+
 Reproductor de música progresivo (PWA) rápido, privado y sin anuncios. Lee tus archivos locales (MP3, WAV, FLAC, WMA) directamente en el navegador, sin subirlos a ningún servidor.
 
 **Demo:** https://viccurzio.github.io/musik/ — con `?demo=1` abre con una biblioteca de ejemplo ya cargada:
