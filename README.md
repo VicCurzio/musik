@@ -99,16 +99,16 @@ Para instalar la app en un teléfono hay que servirla bajo HTTPS.
 
 2. **GitHub Pages** (URL: https://viccurzio.github.io/musik/):
 
-   Si en Actions aparece *"your account is locked due to a billing issue"*, no es un error del código: GitHub bloquea los workflows hasta que se arregle la facturación en [github.com/settings/billing](https://github.com/settings/billing). El workflow `Deploy to GitHub Pages` no va a correr hasta entonces.
+   Ya está configurado y no hay nada que hacer a mano: Pages toma su contenido
+   de GitHub Actions, y el workflow `Deploy to GitHub Pages` compila y publica
+   en cada push a `main`. El estado de la última publicación es la insignia de
+   arriba.
 
-   Deploy sin Actions, desde la máquina:
-   ```bash
-   npm install
-   npm run deploy
-   ```
-   Eso compila y sube `dist` a la rama `gh-pages`. Después, en el repo: **Settings → Pages →** rama **`gh-pages`**, carpeta **`/ (root)`**.
-
-   El workflow verde "pages build and deployment" es otro, de GitHub. Si Pages apunta a `main` publica el código sin compilar y da 404: tiene que ser la rama `gh-pages` con el build.
+   Si en Actions aparece *"your account is locked due to a billing issue"*, no
+   es un error del código: GitHub bloquea los workflows hasta que se arregle la
+   facturación en [github.com/settings/billing](https://github.com/settings/billing).
+   Hasta entonces el sitio publicado se queda en la última versión que llegó a
+   compilar.
 
 ## Entrega y versiones
 
