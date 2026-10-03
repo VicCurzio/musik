@@ -11,7 +11,7 @@
  *
  * Opciones:
  *   --dry     muestra qué haría, sin escribir nada
- *   --tag     además crea el tag de git vX.Y.Z
+ *   --tag     además crea el tag anotado de git vX.Y.Z
  *
  * No tiene dependencias a propósito: cualquier repo puede copiar este archivo.
  */
@@ -106,11 +106,13 @@ if (shouldTag) {
   try {
     execSync(`git add package.json CHANGELOG.md`, { cwd: root, stdio: 'inherit' });
     execSync(`git commit -m "Release v${version}"`, { cwd: root, stdio: 'inherit' });
-    execSync(`git tag v${version}`, { cwd: root, stdio: 'inherit' });
+    // Anotado y no liviano: `git push --follow-tags` solo empuja los anotados,
+    // asi que un tag liviano se queda en local sin que nadie lo note.
+    execSync(`git tag -a v${version} -m "v${version}"`, { cwd: root, stdio: 'inherit' });
     console.log(`  commit y tag v${version} creados`);
   } catch {
     console.warn('  no se pudo commitear/taggear (¿hay cambios sin guardar?)');
   }
 } else {
-  console.log(`\nFalta: revisar, commitear y taggear.\n  git tag v${version}\n`);
+  console.log(`\nFalta: revisar, commitear y taggear.\n  git tag -a v${version} -m "v${version}"\n`);
 }
