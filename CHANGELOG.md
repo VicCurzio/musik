@@ -8,6 +8,9 @@ Lo que está en `Sin publicar` se muestra recién cuando se corre `npm run relea
 
 ## [Sin publicar]
 
+
+## [1.4.0] - 2026-10-03
+
 ### Agregado
 
 - Nueve canciones de ejemplo para probar la app sin tener archivos propios: tres álbumes con sus carátulas, repartidos en carpetas, con una lista y un par de favoritos ya armados. No se descarga nada, se crean en el momento en tu navegador.
